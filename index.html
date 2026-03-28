@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>🌸 タスクちゃん</title>
+<style>
+  :root {
+    --pink: #ff8fab;
+    --pink-light: #ffb3c6;
+    --pink-pale: #fff0f3;
+    --purple: #c77dff;
+    --purple-light: #e0aaff;
+    --mint: #80ed99;
+    --mint-light: #b7e4c7;
+    --yellow: #ffdd57;
+    --yellow-light: #fff3b0;
+    --blue: #74c0fc;
+    --blue-light: #d0ebff;
+    --bg: #fff5f7;
+    --card: #ffffff;
+    --text: #4a4a6a;
+    --text-light: #9090b0;
+    --shadow: 0 4px 20px rgba(255, 143, 171, 0.2);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 120px;
+  }
+
+  /* ヘッダー */
+  header {
+    background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
+    padding: 24px 20px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(199, 125, 255, 0.3);
+  }
+  header h1 {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  header p {
+    color: rgba(255,255,255,0.85);
+    font-size: 0.8rem;
+    margin-top: 4px;
+  }
+
+  /* 統計バー */
+  .stats {
+    display: flex;
+    gap: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .stats::-webkit-scrollbar { display: none; }
+  .stat-chip {
+    background: var(--card);
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: bold;
+    color: var(--text);
+  }
+  .stat-chip span { font-size: 1rem; }
+
+  /* フィルタータブ */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    background: var(--card);
+    border: 2px solid transparent;
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-size: 0.82rem;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-light);
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--pink);
+    color: white;
+    border-color: var(--pink);
+    box-shadow: 0 4px 12px rgba(255, 143, 171, 0.4);
+  }
+
+  /* タスクリスト */
+  .task-list {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* タスクカード */
+  .task-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s;
+    border-left: 4px solid transparent;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .task-card.done {
+    opacity: 0.6;
+    background: #f8f8f8;
+  }
+  .task-card.done .task-text {
+    text-decoration: line-through;
+    color: var(--text-light);
+  }
+  .task-card[data-priority="high"] { border-left-color: var(--pink); }
+  .task-card[data-priority="mid"]  { border-left-color: var(--yellow); }
+  .task-card[data-priority="low"]  { border-left-color: var(--mint); }
+
+  /* チェックボタン */
+  .check-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--pink-light);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.2s;
+    color: transparent;
+  }
+  .check-btn:active { transform: scale(0.9); }
+  .task-card.done .check-btn {
+    background: var(--mint);
+    border-color: var(--mint);
+    color: white;
+  }
+
+  .task-main { flex: 1; min-width: 0; }
+  .task-text {
+    font-size: 0.95rem;
+    font-weight: bold;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .task-meta {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 50px;
+    font-weight: bold;
+  }
+  .tag-high { background: #ffe0e8; color: var(--pink); }
+  .tag-mid  { background: var(--yellow-light); color: #c48000; }
+  .tag-low  { background: var(--mint-light); color: #2d8a4e; }
+  .task-date {
+    font-size: 0.72rem;
+    color: var(--text-light);
+  }
+  .task-date.overdue { color: var(--pink); font-weight: bold; }
+
+  /* カテゴリ絵文字 */
+  .task-emoji {
+    font-size: 1.3rem;
+    min-width: 28px;
+    text-align: center;
+  }
+
+  /* 削除ボタン */
+  .delete-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+  }
+  .delete-btn:active { opacity: 1; }
+
+  /* 空のメッセージ */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
+  }
+  .empty .emoji { font-size: 4rem; display: block; margin-bottom: 12px; }
+  .empty p { font-size: 0.9rem; line-height: 1.8; }
+
+  /* 追加フォーム（モーダル） */
+  .fab {
+    position: fixed;
+    bottom: 28px;
+    right: 24px;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none;
+    font-size: 1.8rem;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(199, 125, 255, 0.5);
+    z-index: 200;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fab:active { transform: scale(0.92); }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(74, 74, 106, 0.4);
+    z-index: 300;
+    display: none;
+    align-items: flex-end;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.show { display: flex; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--card);
+    border-radius: 28px 28px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal h2 {
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .modal h2 span { color: var(--pink); }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text-light);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--pink-pale);
+    border-radius: 14px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--pink);
+  }
+  .form-textarea { min-height: 70px; resize: none; }
+
+  /* カテゴリ選択 */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .cat-btn {
+    background: var(--bg);
+    border: 2px solid var(--pink-pale);
+    border-radius: 14px;
+    padding: 10px 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-size: 0.75rem;
+    color: var(--text-light);
+  }
+  .cat-btn .cat-icon { font-size: 1.4rem; display: block; margin-bottom: 2px; }
+  .cat-btn.selected {
+    border-color: var(--pink);
+    background: var(--pink-pale);
+    color: var(--pink);
+    font-weight: bold;
+  }
+
+  /* 優先度 */
+  .priority-row {
+    display: flex;
+    gap: 8px;
+  }
+  .pri-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    font-size: 0.82rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+    color: var(--text-light);
+  }
+  .pri-btn.high { border-color: var(--pink-light); }
+  .pri-btn.mid  { border-color: #ffe566; }
+  .pri-btn.low  { border-color: var(--mint-light); }
+  .pri-btn.high.selected { background: var(--pink); color: white; border-color: var(--pink); }
+  .pri-btn.mid.selected  { background: var(--yellow); color: #6b4800; border-color: var(--yellow); }
+  .pri-btn.low.selected  { background: var(--mint); color: #1a5e35; border-color: var(--mint); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 4px 16px rgba(255, 143, 171, 0.4);
+    transition: transform 0.1s;
+  }
+  .submit-btn:active { transform: scale(0.97); }
+
+  /* 完了アニメ */
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .task-card.pop { animation: pop 0.25s ease; }
+
+  /* セクションラベル */
+  .section-label {
+    font-size: 0.78rem;
+    font-weight: bold;
+    color: var(--text-light);
+    padding: 8px 16px 4px;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌸 タスクちゃん</h1>
+  <p id="greet">今日もひとつずつ、がんばろう！</p>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-filter="all">✨ すべて</button>
+  <button class="tab" data-filter="today">📅 今日</button>
+  <button class="tab" data-filter="todo">⭐ やること</button>
+  <button class="tab" data-filter="done">✅ 完了</button>
+</div>
+
+<div id="task-list" class="task-list"></div>
+
+<button class="fab" id="fab-btn" title="タスクを追加">＋</button>
+
+<!-- 追加モーダル -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>✏️ <span>タスクを追加</span></h2>
+
+    <div class="form-group">
+      <label class="form-label">📝 タスク名 *</label>
+      <input class="form-input" id="input-title" type="text" placeholder="何をする？" maxlength="80">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">🗂 カテゴリ</label>
+      <div class="cat-grid" id="cat-grid">
+        <button class="cat-btn selected" data-cat="💡" data-label="勉強">
+          <span class="cat-icon">💡</span>勉強
+        </button>
+        <button class="cat-btn" data-cat="🏠" data-label="家事">
+          <span class="cat-icon">🏠</span>家事
+        </button>
+        <button class="cat-btn" data-cat="💼" data-label="仕事">
+          <span class="cat-icon">💼</span>仕事
+        </button>
+        <button class="cat-btn" data-cat="🛒" data-label="買い物">
+          <span class="cat-icon">🛒</span>買い物
+        </button>
+        <button class="cat-btn" data-cat="💊" data-label="健康">
+          <span class="cat-icon">💊</span>健康
+        </button>
+        <button class="cat-btn" data-cat="🎮" data-label="趣味">
+          <span class="cat-icon">🎮</span>趣味
+        </button>
+        <button class="cat-btn" data-cat="👥" data-label="人間関係">
+          <span class="cat-icon">👥</span>人間関係
+        </button>
+        <button class="cat-btn" data-cat="📌" data-label="その他">
+          <span class="cat-icon">📌</span>その他
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">🔥 優先度</label>
+      <div class="priority-row">
+        <button class="pri-btn high" data-pri="high">🔴 高い</button>
+        <button class="pri-btn mid selected" data-pri="mid">🟡 ふつう</button>
+        <button class="pri-btn low" data-pri="low">🟢 低い</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">📅 期限（任意）</label>
+      <input class="form-input" id="input-date" type="date">
+    </div>
+
+    <button class="submit-btn" id="submit-btn">🌸 追加する</button>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'taskChan_tasks';
+let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+let selectedCat = '💡';
+let selectedPri = 'mid';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < today();
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const t = today();
+  if (dateStr === t) return '今日';
+  if (dateStr < t) return dateStr + '（過ぎました）';
+  const diff = Math.round((new Date(dateStr) - new Date(t)) / 86400000);
+  if (diff === 1) return '明日';
+  if (diff <= 7) return `${diff}日後`;
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function greetMessage() {
+  const h = new Date().getHours();
+  if (h < 5)  return '夜更かし中？無理しないでね🌙';
+  if (h < 11) return 'おはよう！今日もゆっくりはじめよう☀️';
+  if (h < 14) return 'もうひとふんばり！お昼も近いよ🍱';
+  if (h < 17) return '午後もコツコツいこう✨';
+  if (h < 20) return 'お疲れさま！あとすこし🌇';
+  return 'ゆっくり休んでね🌸';
+}
+
+function renderStats() {
+  const total = tasks.length;
+  const done = tasks.filter(t => t.done).length;
+  const today_tasks = tasks.filter(t => t.date === today() && !t.done).length;
+  const overdue = tasks.filter(t => isOverdue(t.date) && !t.done).length;
+  document.getElementById('greet').textContent = greetMessage();
+  const stats = document.getElementById('stats');
+  stats.innerHTML = `
+    <div class="stat-chip"><span>📋</span> 全 ${total}件</div>
+    <div class="stat-chip"><span>✅</span> 完了 ${done}件</div>
+    <div class="stat-chip"><span>📅</span> 今日 ${today_tasks}件</div>
+    ${overdue > 0 ? `<div class="stat-chip" style="color:var(--pink)"><span>⚠️</span> 期限切れ ${overdue}件</div>` : ''}
+  `;
+}
+
+function getFilteredTasks() {
+  switch (currentFilter) {
+    case 'todo':  return tasks.filter(t => !t.done);
+    case 'done':  return tasks.filter(t => t.done);
+    case 'today': return tasks.filter(t => t.date === today());
+    default:      return [...tasks];
+  }
+}
+
+function renderTasks() {
+  renderStats();
+  const list = document.getElementById('task-list');
+  const filtered = getFilteredTasks();
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty">
+        <span class="emoji">🌷</span>
+        <p>タスクはありません<br>「＋」ボタンで追加しよう！</p>
+      </div>`;
+    return;
+  }
+
+  // 未完了→完了の順、未完了は優先度順
+  const priOrder = { high:0, mid:1, low:2 };
+  filtered.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (priOrder[a.priority] || 1) - (priOrder[b.priority] || 1);
+  });
+
+  list.innerHTML = filtered.map(t => {
+    const over = isOverdue(t.date) && !t.done;
+    const priLabel = { high:'🔴 高い', mid:'🟡 ふつう', low:'🟢 低い' }[t.priority] || '';
+    const tagClass = { high:'tag-high', mid:'tag-mid', low:'tag-low' }[t.priority] || '';
+    return `
+      <div class="task-card ${t.done ? 'done' : ''}" data-id="${t.id}" data-priority="${t.priority}">
+        <button class="check-btn" onclick="toggleDone('${t.id}')">${t.done ? '✓' : ''}</button>
+        <div class="task-emoji">${t.category}</div>
+        <div class="task-main">
+          <div class="task-text">${escHtml(t.title)}</div>
+          <div class="task-meta">
+            <span class="tag ${tagClass}">${priLabel}</span>
+            ${t.date ? `<span class="task-date ${over ? 'overdue' : ''}">📅 ${formatDate(t.date)}</span>` : ''}
+          </div>
+        </div>
+        <button class="delete-btn" onclick="deleteTask('${t.id}')">🗑</button>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleDone(id) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  save();
+  renderTasks();
+  const card = document.querySelector(`[data-id="${id}"]`);
+  if (card) { card.classList.add('pop'); setTimeout(() => card.classList.remove('pop'), 300); }
+  if (t.done) showConfetti();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  save();
+  renderTasks();
+}
+
+// 紙吹雪
+function showConfetti() {
+  const colors = ['#ff8fab','#c77dff','#80ed99','#ffdd57','#74c0fc'];
+  for (let i = 0; i < 18; i++) {
+    const el = document.createElement('div');
+    const size = 8 + Math.random() * 10;
+    el.style.cssText = `
+      position:fixed; z-index:9999; pointer-events:none;
+      width:${size}px; height:${size}px; border-radius:${Math.random()>0.5?'50%':'3px'};
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      left:${20+Math.random()*60}vw; top:40vh;
+      animation: confetti 0.9s ease forwards;
+    `;
+    document.body.appendChild(el);
+    const tx = (Math.random()-0.5)*200;
+    const ty = -(80+Math.random()*120);
+    el.animate([
+      { transform:`translate(0,0) rotate(0deg)`, opacity:1 },
+      { transform:`translate(${tx}px,${ty}px) rotate(${Math.random()*360}deg)`, opacity:0 }
+    ], { duration: 900, easing:'ease-out', fill:'forwards' });
+    setTimeout(() => el.remove(), 1000);
+  }
+}
+
+// モーダル
+document.getElementById('fab-btn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('input-title').focus();
+});
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('input-title').value = '';
+  document.getElementById('input-date').value = '';
+}
+
+// カテゴリ選択
+document.getElementById('cat-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn) return;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedCat = btn.dataset.cat;
+});
+
+// 優先度選択
+document.querySelectorAll('.pri-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pri-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedPri = btn.dataset.pri;
+  });
+});
+
+// 追加
+document.getElementById('submit-btn').addEventListener('click', addTask);
+document.getElementById('input-title').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTask();
+});
+
+function addTask() {
+  const title = document.getElementById('input-title').value.trim();
+  if (!title) {
+    document.getElementById('input-title').style.borderColor = 'var(--pink)';
+    document.getElementById('input-title').focus();
+    setTimeout(() => document.getElementById('input-title').style.borderColor = '', 800);
+    return;
+  }
+  tasks.unshift({
+    id: Date.now().toString(),
+    title,
+    category: selectedCat,
+    priority: selectedPri,
+    date: document.getElementById('input-date').value,
+    done: false,
+    created: today()
+  });
+  save();
+  closeModal();
+  renderTasks();
+}
+
+// フィルタータブ
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentFilter = tab.dataset.filter;
+  renderTasks();
+});
+
+// 初期表示
+renderTasks();
+</script>
+</body>
+</html>
